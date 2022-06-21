@@ -2,6 +2,7 @@ package lock
 
 import (
     "context"
+    "sync"
     "time"
 )
 
@@ -15,18 +16,24 @@ func NewEventLock(ctx context.Context) *EventLock {
 }
 
 type EventLock struct {
+    mx      sync.Mutex
     ctx     context.Context
     cancels []context.CancelFunc
 }
 
-func (e *EventLock) Wait(wait ...time.Time) <-chan struct{} {
-    if len(wait) < 1 {
-        ctx, cancel := context.WithCancel(e.ctx)
-        e.cancels = append(e.cancels, cancel)
-        return ctx.Done()
-    }
-    ctx, cancel := context.WithDeadline(e.ctx, wait[0])
+func (e *EventLock) Wait() <-chan struct{} {
+    ctx, cancel := context.WithCancel(e.ctx)
+    e.mx.Lock()
     e.cancels = append(e.cancels, cancel)
+    e.mx.Unlock()
+    return ctx.Done()
+}
+
+func (e *EventLock) WaitTime(wait time.Time) <-chan struct{} {
+    ctx, cancel := context.WithDeadline(e.ctx, wait)
+    e.mx.Lock()
+    e.cancels = append(e.cancels, cancel)
+    e.mx.Unlock()
     return ctx.Done()
 }
 
@@ -34,4 +41,7 @@ func (e *EventLock) Notify() {
     for _, cancel := range e.cancels {
         cancel()
     }
+    e.mx.Lock()
+    e.cancels = []context.CancelFunc{}
+    e.mx.Unlock()
 }
