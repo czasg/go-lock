@@ -1,6 +1,10 @@
 package lock
 
-type SignalLock struct{}
+import "context"
+
+type SignalLock struct{
+    signals map[int][]context.CancelFunc
+}
 
 func (s *SignalLock) Wait() {}
 
