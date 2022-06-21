@@ -38,6 +38,9 @@ func (e *EventLock) WaitTime(wait time.Time) <-chan struct{} {
 }
 
 func (e *EventLock) Notify() {
+    if len(e.cancels) < 1 {
+        return
+    }
     for _, cancel := range e.cancels {
         cancel()
     }
