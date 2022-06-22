@@ -21,30 +21,30 @@ type EventLock struct {
     cancels []context.CancelFunc
 }
 
-func (e *EventLock) Wait() <-chan struct{} {
+func (e *EventLock) Wait() context.Context {
     ctx, cancel := context.WithCancel(e.ctx)
     e.mx.Lock()
     e.cancels = append(e.cancels, cancel)
     e.mx.Unlock()
-    return ctx.Done()
+    return ctx
 }
 
-func (e *EventLock) WaitTime(wait time.Time) <-chan struct{} {
+func (e *EventLock) WaitTime(wait time.Time) context.Context {
     ctx, cancel := context.WithDeadline(e.ctx, wait)
     e.mx.Lock()
     e.cancels = append(e.cancels, cancel)
     e.mx.Unlock()
-    return ctx.Done()
+    return ctx
 }
 
 func (e *EventLock) Notify() {
     if len(e.cancels) < 1 {
         return
     }
+    e.mx.Lock()
+    defer e.mx.Unlock()
     for _, cancel := range e.cancels {
         cancel()
     }
-    e.mx.Lock()
     e.cancels = []context.CancelFunc{}
-    e.mx.Unlock()
 }
